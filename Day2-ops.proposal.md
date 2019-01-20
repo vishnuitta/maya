@@ -1,8 +1,8 @@
 This is pool related day-2 ops.
 
 Below day2 ops are considered:
-- expansion of current pool
-- disk replacement with current pool being intact
+- expansion of current pool wrt capacity and IOPS
+- disk replacement, if followed, with current pool being intact
 
 Below ones involve re-creating of new pools and new volumes:
 - replacing old node with new node and new disks
