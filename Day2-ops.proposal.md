@@ -2,7 +2,7 @@ This is pool related day-2 ops.
 
 Below day2 ops are considered:
 - expansion of current pool wrt capacity and IOPS
-- disk replacement, if followed, with current pool being intact
+- disk replacement with current pool being intact
 
 Below ones involve re-creating of new pools and new volumes:
 - replacing old node with new node and new disks
@@ -45,6 +45,8 @@ redundantGroupSize - gives the number of disks that need to be part of diskGroup
 This will have an UniqueID which represents this SPC.
 
 API server who watches for changes in this intent will do following:
+
+(This section mostly relates to pools creation/deletion)
 - If maxPools number of CSP CRs are created, it won't add new CSP CRs
 - If maxPools number of CSP CRs are not created, it creates one based on the given disk CRs of a particular node.
 - If all the disk CRs related to a particular node are removed, API server considers it as deleting the pool from SPC. In this case, API server sets the status of particular node's CSP as 'Deleted', unsets everything in particular node's CSP (including node UID, CSP UID), deletes the deployment yamls. This shouldn't unset pool structure as this can be needed for node replacement and old disks.
@@ -55,16 +57,29 @@ API server who watches for changes in this intent will do following:
   - makes sure that CSP is marked as 'Deleted' and deployments are deleted
   - add the same disk CRs that are removed. This causes import of the pool on these disks. (Disk CRs of old node need to be removed, and same disk CRs need to be added becz API server will not see any change in the SPC configuration. No visible change will be there in SPC becz NDM will give same disk CR for same disk on different node. But, disk CR will be updated with node UID. If API server can see the update on disk CR, then, this workflow will not be required, and it can be made automatic.)
 
+(This section of items mostly relates to disks of the nodes on which CSP is already available)
+- If disk CRs related to a node are added on which CSP is available, those disks will be added to pool structure of that particular CSP to increase total capacity.
+- If disk CRs related to a node are removed, those disks will be marked as 'Offline' in its CSP (this should stop pool reading/writing to this disk, and even during import time)
+- If disk CRs related to a node are added on which CSP is available, but, few of the disk CRs are marked as 'Offline', even though new disk CRs might have got added to increase capacity, if the newly added disk CRs can replace the disk CRs that are marked as 'Offline', replace them in the pool structure of CSP and mark them as 'Online'.
+  - If the same disk CRs that are marked as 'Offline' got added, just setting the state of disk to 'Online' should be good (this should trigger automatic resilvering of pool)
 
 API server converts this to CSP yamls for each node.
 
 
-
 CSP yaml:
 API server creates this intent for each specific node by using nodeUID.
-This contains intent about node for which this CSP applies, pool structure along with disk CRs
+This contains intent about node for which this CSP applies, pool structure along with disk CRs.
 This will have an UniqueID which represents this pool.
 This will have link to SPC UID.
+
+pool-mgmt verifies that it picked the CSP that matches its node UID.
+pool-mgmt verifies that all its disk CRs are existing, and their node UID matching with the node ID on which pool-mgmt resides.
+pool-mgmt reads the devices's devlink id of all disk CRs.
+pool-mgmt first attempts import by using cache file and also tries to import using the pool name and the directory in which disks resides (how to get this directory path?)
+If import is not successful, pool-mgmt creates the pool using the pool structure in CSP.
+If import is successful, pool-mgmt verifies the disk structure in CSP with the disk structure of pool available.
+If these two doesn't match, based on the changes (either addition/updates/replacement) available, below actions will be taken.
+(- what to do if disks of same group are marked as 'Offline'?)
 
 
 
