@@ -1,41 +1,61 @@
-This is pool related day-2 ops.
+# Design Proposal to implement operations on cStor pool required on Day-2 of OpenEBS installation.
 
-Below day2 ops are considered:
-- expansion of current pool wrt capacity and IOPS
-- disk replacement with current pool being intact
+## Overview
 
-Below ones involve re-creating of new pools and new volumes:
-- replacing old node with new node and new disks
-- replacing old disks in a node with new disks of same node
+OpenEBS makes the life of storage administrator easier in designing his team's storage requirements.  As of now, OpenEBS focused on ease of use of installation in giving CAS to admin.
+There are few other operations that can ease admin while doing his operations on Day-2 of OpenEBS installation. This proposal is to identify and propose design to implement the identified operations.
 
-Below ones involve importing of pool (not creating new pool):
-- replacing old node with new node and old disks
+## Considered operations
 
-Below ones are related to (upward) horizontal scaling of pool pods:
-- Add new pool to SPC for later volume provisioning
+Below are the operations considered on cStor pool in this proposal:
 
-Below ones are related to deleting pool pod (this doesn't handle about data consisteny):
-(this is required in replacing with new node)
-- Remove a pool pod from SPC
+(below ones involve re-creating of new pools and new volumes)
+* Replacing node in cluster
+  When a node is gone bad in cluster along with disks, replace it with new node and use disks attached to it in creating the pool
 
-Not considered:
-- Downscaling of pool pods which involves downscaling of volumes (?)
+* Replacing disks in the current pool
+  When pool is not in usable state as many disks are gone bad, those old disks need to be replaced with new disks of same node
 
-Assumptions or dependencies on other components:
-cStor:
-- Does automatic resilvering of pools due to momentary loss of disks in a pool
-- Allows to import pools with cache file due to memontary loss of atleast one full redundant group and with changes in device's dev link-id
-- Handles rebuilding of data in re-created volumes
-- Allows to import pools even without cache file and with directory path of disks and with changes in device's dev link-id
-- Disk CR state changing between 'Active' and 'InActive', i.e., on and off reachability of a disk in cStor pool during run time is handled by cStor
+(below ones involve re-creating of new pools and new volumes)
+* Migrating disks from one node to other node in the cluster
+  When a node is gone bad in cluster but the disks that are used to create pool are intact, replace the old node with new node after attaching the same disks to new node.
 
-NDM:
-- un-usability of disk CR by changing its status to 'InActive' if the disk shouldn't be used for pools
-- usability of disk CR by changing its status to 'Active' if the disk should be used for pools
-- gives same disk CR for same disk even if the disk moves across different nodes (ephemeral disks also)
-- give different disk CR for different disk even if the disk is in same node
+* Increasing pool capacity
+  Adding more disks to the pool to increase pool capacity
 
-SPC yaml:
+* Replacing a bad/faulted disk with good disk, without impacting current pool
+  When a disk is gone bad but the pool is still in usable state, this bad disk need to be replaced with good disk
+
+(below ones are related to horizontal scale up of pool pods)
+* Add new pool to current storage pool cluster (SPC) for later volume provisioning
+  A new node with pool created on it will be added to SPC, which can be used for later volume provisioning.
+
+(below ones are related to deleting pool pod)
+* Remove a pool from SPC
+  Existing node with pool on it can be removed, but, not scaled down. This deleted pool from SPC can be replaced with new node.
+  Note: This can lead to data unavailability or data loss and need to be taken care by administrator.
+
+## Out of scope:
+* Downscaling of pool pods which involves downscaling of volumes or data movement across other pools.
+* Support of above identified pool operations in Auto provisioning mode
+* No volume distribution on adding new pools to pool cluster
+
+## Dependencies on other components:
+
+### cStor:
+* Does automatic resilvering of pools when disks in a pool momentarily loss access and appears again
+* Import pools with cache file when multiple (all) disks in a pool belonging to a same redundant group memotarily loss access and appears again
+* Import pools even if there is change in device's devlink-id
+* Handles rebuilding of data in re-created volumes
+* Allows to import pools, even without cache file, with the help of using ZFS pool UID and the directory location of disks
+
+### NDM:
+* Specifiying usability of a disk by discovering that disk and having its CR available to cStor pool-mgmt
+* Specifiying unavailability of a disk by NOT discovering that disk
+* (Does this proposal depends on Active/Inactive state of disk CR?)
+* Uniquely names disk CR for a given disk even if the same disk moves across different nodes. It also means - giving different names to disk CRs of different disks.
+
+## SPC yaml:
 Admin creates this intent.
 This contains intent on the number of pools, nodes on which pool need to be available, disks that need to be part of pool, poolType, redundantGroupSize, overprovisiong (?)(this need to be part of volume)
 Various fields are:
