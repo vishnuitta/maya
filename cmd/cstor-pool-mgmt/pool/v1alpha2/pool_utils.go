@@ -38,9 +38,9 @@ const (
 	DevDir = "/dev"
 )
 
-func getPathForBdevList(bdevs []apis.CStorPoolClusterBlockDevice) ([]string, error) {
-	var vdev []string
+func getPathForBdevList(bdevs []apis.CStorPoolClusterBlockDevice) (map[string]string, error) {
 	var err error
+	vdev := make(map[string]string)
 
 	for _, b := range bdevs {
 		path, er := getPathForBDev(b.BlockDeviceName)
@@ -48,7 +48,7 @@ func getPathForBdevList(bdevs []apis.CStorPoolClusterBlockDevice) ([]string, err
 			err = ErrorWrapf(err, "Failed to fetch path for bdev {%s} {%s}", b.BlockDeviceName, er.Error())
 			continue
 		}
-		vdev = append(vdev, path)
+		vdev[b.BlockDeviceName] = path
 	}
 	return vdev, err
 }

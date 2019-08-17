@@ -45,10 +45,15 @@ func addRaidGroup(csp *apis.CStorPoolInstance, r apis.RaidGroup) error {
 
 	deviceType := getDeviceType(r)
 
-	vlist, err := getPathForBdevList(r.BlockDevices)
+	vdevmap, err := getPathForBdevList(r.BlockDevices)
 	if err != nil {
 		glog.Errorf("Failed to get list of disk-path : %s", err.Error())
 		return err
+	}
+	vlist := make([]string)
+
+	for _, val := range vdevmap {
+		vlist = append(vlist, val)
 	}
 
 	_, err = zfs.NewPoolExpansion().
